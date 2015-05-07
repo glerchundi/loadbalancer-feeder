@@ -1,0 +1,18 @@
+#!/usr/bin/execlineb -P
+
+redirfd -wnb 2 /var/run/s6/feeder-error-log-fifo
+foreground { kubelistener --log-level debug --resource pods }
+pipeline
+{
+  jq -r "
+    select(.object.status.phase==\"Running\") |
+    select(.object.status.podIP!=null) |
+    select(.object.spec.containers[].ports[].containerPort==8080) |
+    \"\\(.type) \\(.object.metadata.name) \\({url:\"\\(.object.status.podIP):8080\"})\"
+  "
+}
+forstdin -d"\n" -- line
+import -u line
+if { s6-test -n ${line} }
+multidefine -0 -Cd" " -- ${line} { type name value }
+s6-echo '${type}' '${name}' '${value}'
