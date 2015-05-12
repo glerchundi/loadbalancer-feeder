@@ -5,9 +5,6 @@ MAINTAINER Gorka Lerchundi Osa <glertxundi@gmail.com>
 ## INSTALL
 ##
 
-# curl
-RUN apt-get update && apt-get-install-min curl vim
-
 # kubelistener
 ADD https://github.com/glerchundi/kubelistener/releases/download/v0.1.0/kubelistener-0.1.0-linux-amd64 /usr/bin/kubelistener
 RUN chmod 0755 /usr/bin/kubelistener
@@ -15,6 +12,10 @@ RUN chmod 0755 /usr/bin/kubelistener
 # jq
 ADD http://stedolan.github.io/jq/download/linux64/jq /usr/bin/jq
 RUN chmod 0755 /usr/bin/jq
+
+# etcdctl
+ADD https://github.com/coreos/etcd/releases/download/v2.0.10/etcd-v2.0.10-linux-amd64.tar.gz /tmp/etcd.tar.gz
+RUN tar xvfz /tmp/etcd.tar.gz -C /usr/bin --strip 1 --wildcards --no-anchored 'etcdctl'
 
 ##
 ## ROOTFS

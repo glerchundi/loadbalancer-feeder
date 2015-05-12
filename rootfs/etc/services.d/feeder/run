@@ -1,18 +1,70 @@
 #!/usr/bin/execlineb -P
 
-redirfd -wnb 2 /var/run/s6/feeder-error-log-fifo
-foreground { kubelistener --log-level debug --resource pods }
+with-contenv
+multisubstitute
+{
+  importas -u -D "" selector KUBELISTENER_SELECTOR
+  importas -u -D 60 interval KUBELISTENER_INTERVAL
+  importas -u -D "/lb" prefix ETCD_PREFIX
+}
+backtick -n ttl { s6-expr ${interval} \* 4 / 3 }
+import -u ttl
 pipeline
 {
-  jq -r "
+  redirfd -wnb 2 /var/run/s6/feeder-error-log-fifo
+  kubelistener --sync-interval=${interval} --selector="${selector}" --log-level="debug" --resource="pods"
+}
+pipeline
+{
+  jq --unbuffered -r "
     select(.object.status.phase==\"Running\") |
     select(.object.status.podIP!=null) |
-    select(.object.spec.containers[].ports[].containerPort==8080) |
-    \"\\(.type) \\(.object.metadata.name) \\({url:\"\\(.object.status.podIP):8080\"})\"
+    select(.object.spec.containers[]?.ports[]?.containerPort==8080) |
+    # 
+    # operation (0=added,1=modified,2=deleted)
+    #
+    (.type | tostring) + \
+    # space
+    \" \" + \
+    # 
+    # pod name (if it was created using a replication controller, remove trailing '-'
+    #
+    ( \
+      if .object.metadata.generateName==null then \
+        .object.metadata.name \
+      else \
+        .object.metadata.generateName \
+      end \
+    | tostring) + \
+    # space
+    \" \" + \
+    # 
+    # unique resource identifier
+    #
+    (.object.metadata.uid | tostring) + \
+    \" \" + \
+    # 
+    # host + port
+    #
+    ({url:(.object.status.podIP+\":8080\")} | tostring)
   "
 }
 forstdin -d"\n" -- line
 import -u line
 if { s6-test -n ${line} }
-multidefine -0 -Cd" " -- ${line} { type name value }
-s6-echo '${type}' '${name}' '${value}'
+multidefine -rd" " -- ${line} { type name uid splitvalue }
+# a little hack to merge all splitted values into one, quoting it
+backtick -n value
+{
+  backtick -n unquotedvalue { s6-echo ${splitvalue} }
+  import -u unquotedvalue
+  s6-quote ${unquotedvalue}
+}
+import -u value
+# if it was added or modified, create/update that value in etcd
+ifelse { s6-test ${type} -le 1 }
+{
+  with-retries
+  etcdctl set ${prefix}/upstreams/${name}/${uid} ${value} --ttl ${ttl}
+}
+etcdctl rm ${prefix}/upstreams/${name}/${uid}
