@@ -65,6 +65,6 @@ import -u value
 ifelse { s6-test ${type} -le 1 }
 {
   with-retries
-  etcdctl set ${prefix}/upstreams/${name}/${uid} ${value} --ttl ${ttl}
+  etcdctl set ${prefix}/upstreams/${name}/servers/${uid} ${value} --ttl ${ttl}
 }
-etcdctl rm ${prefix}/upstreams/${name}/${uid}
+etcdctl rm ${prefix}/upstreams/${name}/servers/${uid}
