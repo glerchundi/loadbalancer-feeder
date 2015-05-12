@@ -54,12 +54,7 @@ import -u line
 if { s6-test -n ${line} }
 multidefine -rd" " -- ${line} { type name uid splitvalue }
 # a little hack to merge all splitted values into one, quoting it
-backtick -n value
-{
-  backtick -n unquotedvalue { s6-echo ${splitvalue} }
-  import -u unquotedvalue
-  s6-quote ${unquotedvalue}
-}
+backtick -n value { s6-echo ${splitvalue} }
 import -u value
 # if it was added or modified, create/update that value in etcd
 ifelse { s6-test ${type} -le 1 }
