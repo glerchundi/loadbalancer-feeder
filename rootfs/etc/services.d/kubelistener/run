@@ -1,0 +1,9 @@
+#!/usr/bin/execlineb -P
+
+with-contenv
+multisubstitute
+{
+  importas -u -D "" selector KUBELISTENER_SELECTOR
+  importas -u -D 30 interval KUBELISTENER_RESYNC_INTERVAL
+}
+kubelistener --resource="services" --resync-interval="${interval}m" --selector="${selector}" --add-events-file="/var/run/s6/feeder-add-events-fifo" --update-events-file="/var/run/s6/feeder-update-events-fifo" --delete-events-file="/var/run/s6/feeder-delete-events-fifo"

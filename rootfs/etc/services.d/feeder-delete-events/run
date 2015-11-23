@@ -1,0 +1,19 @@
+#!/usr/bin/execlineb -P
+
+with-contenv
+multisubstitute
+{
+  importas -u -D "/lb" prefix ETCD_PREFIX
+}
+redirfd -rnb 0 /var/run/s6/feeder-delete-events-fifo
+pipeline
+{
+    jq --unbuffered -r "
+      (.metadata.name | tostring) + \" \" + (.metadata.uid | tostring)
+    "
+}
+forstdin -d"\n" -- line
+import -u line
+if { s6-test -n ${line} }
+multidefine -rd" " -- ${line} { name uid }
+etcdctl --no-sync rm ${prefix}/upstreams/${name}/servers/${uid}
