@@ -1,0 +1,31 @@
+#!/usr/bin/execlineb -P
+
+with-contenv
+multisubstitute
+{
+  importas -u -D 30 interval KUBELISTENER_RESYNC_INTERVAL
+  importas -u -D "/lb" prefix ETCD_PREFIX
+}
+backtick -n ttl { s6-expr ${interval} \* 5 / 4 \* 60 }
+import -u ttl
+redirfd -rnb 0 /var/run/s6/feeder-update-events-fifo
+pipeline
+{
+    jq --unbuffered -r "
+      # ignore old service
+      .new |
+      # if no ports defined, we're unable to reach to the service
+      select(.spec.ports[]?) |
+      # write parsed line
+      (.metadata.name | tostring) + \" \" + (.metadata.uid | tostring) + \" \" + ({url:(.spec.clusterIP+\":\"+(.spec.ports[0].targetPort|tostring))} | tostring)
+    "
+}
+forstdin -d"\n" -- line
+import -u line
+if { s6-test -n ${line} }
+multidefine -rd" " -- ${line} { name uid splitvalue }
+# a little hack to merge all splitted values into one, quoting it
+backtick -n value { s6-echo ${splitvalue} }
+import -u value
+with-retries
+etcdctl --no-sync set ${prefix}/upstreams/${name}/servers/${uid} ${value} --ttl ${ttl}
