@@ -3,7 +3,7 @@
 with-contenv
 multisubstitute
 {
-  importas -u -D "/lb" prefix ETCD_PREFIX
+  importas -u -D "/lb" prefix ETCDCTL_PREFIX
 }
 redirfd -rnb 0 /var/run/s6/feeder-delete-events-fifo
 pipeline
