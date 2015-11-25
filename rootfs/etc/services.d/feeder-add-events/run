@@ -3,10 +3,10 @@
 with-contenv
 multisubstitute
 {
-  importas -u -D 30 interval KUBELISTENER_RESYNC_INTERVAL
-  importas -u -D "/lb" prefix ETCD_PREFIX
+  importas -u -D 1800 interval KUBELISTENER_RESYNC_INTERVAL
+  importas -u -D "/lb" prefix ETCDCTL_PREFIX
 }
-backtick -n ttl { s6-expr ${interval} \* 5 / 4 \* 60 }
+backtick -n ttl { s6-expr ${interval} \* 5 / 4 }
 import -u ttl
 redirfd -rnb 0 /var/run/s6/feeder-add-events-fifo
 pipeline
